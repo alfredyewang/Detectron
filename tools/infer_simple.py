@@ -33,6 +33,7 @@ import os
 import sys
 import time
 
+import csv
 from caffe2.python import workspace
 
 from core.config import assert_and_infer_cfg
@@ -110,7 +111,11 @@ def main(args):
             args.output_dir, '{}'.format(os.path.basename(im_name) + '.pdf')
         )
         logger.info('Processing {} -> {}'.format(im_name, out_name))
+
         im = cv2.imread(im_name)
+        if im is None:
+            continue
+
         timers = defaultdict(Timer)
         t = time.time()
         with c2_utils.NamedCudaScope(0):
@@ -125,6 +130,43 @@ def main(args):
                 ' \ Note: inference on the first image will be slower than the '
                 'rest (caches and auto-tuning need to warm up)'
             )
+        lists = vis_utils.vis_one_image2(
+             im[:, :, ::-1],  # BGR -> RGB for visualization
+             im_name,
+             args.output_dir,
+             cls_boxes,
+             cls_segms,
+             cls_keyps,
+             dataset=dummy_coco_dataset,
+             box_alpha=0.3,
+             show_class=True,
+             thresh=0.7,
+             kp_thresh=2
+         )
+
+
+        class_name = []
+        class_prob = []
+        if lists is not None:
+            for x in lists:
+                class_name.append(x.split(' ')[0])
+                class_prob.append(x.split(' ')[1])
+
+            if (len(class_name) == len(set(class_name))):
+                if (class_name[0] == 'apple'):
+                    lists.insert(0,'1')
+                else:
+                    lists.insert(0,'0')
+            else:
+                lists.insert(0, '0')
+
+        else:
+            lists =[]
+            lists.insert(0, '2')
+        lists.insert(0, os.path.splitext(os.path.basename(im_name))[0])
+        with open("/tmp/detectron-visualizations/output.csv", 'a') as resultFile:
+            wr = csv.writer(resultFile, dialect='excel')
+            wr.writerow(lists)
 
         vis_utils.vis_one_image(
             im[:, :, ::-1],  # BGR -> RGB for visualization

@@ -251,7 +251,7 @@ def vis_one_image_opencv(
 def vis_one_image(
         im, im_name, output_dir, boxes, segms=None, keypoints=None, thresh=0.9,
         kp_thresh=2, dpi=200, box_alpha=0.0, dataset=None, show_class=False,
-        ext='pdf'):
+        ext='jpg'):
     """Visual debugging of detections."""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -387,3 +387,89 @@ def vis_one_image(
     output_name = os.path.basename(im_name) + '.' + ext
     fig.savefig(os.path.join(output_dir, '{}'.format(output_name)), dpi=dpi)
     plt.close('all')
+
+def vis_one_image2(
+        im, im_name, output_dir, boxes, segms=None, keypoints=None, thresh=0.9,
+        kp_thresh=2, dpi=200, box_alpha=0.0, dataset=None, show_class=False,
+        ext='jpg'):
+    """Visual debugging of detections."""
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    if isinstance(boxes, list):
+        boxes, segms, keypoints, classes = convert_from_cls_format(
+            boxes, segms, keypoints)
+
+    if boxes is None or boxes.shape[0] == 0 or max(boxes[:, 4]) < thresh:
+        return
+
+    dataset_keypoints, _ = keypoint_utils.get_keypoints()
+
+    if segms is not None:
+        masks = mask_util.decode(segms)
+
+    color_list = colormap(rgb=True) / 255
+
+    kp_lines = kp_connections(dataset_keypoints)
+    cmap = plt.get_cmap('rainbow')
+    colors = [cmap(i) for i in np.linspace(0, 1, len(kp_lines) + 2)]
+
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(im.shape[1] / dpi, im.shape[0] / dpi)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.axis('off')
+    fig.add_axes(ax)
+    ax.imshow(im)
+
+    # Display in largest to smallest order to reduce occlusion
+    areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    sorted_inds = np.argsort(-areas)
+
+    output_name = os.path.basename(im_name) + '.txt'
+    file = open(os.path.join(output_dir, '{}'.format(output_name)), 'w')
+    class_list =[]
+
+
+
+    mask_color_id = 0
+    for i in sorted_inds:
+        bbox = boxes[i, :4]
+        score = boxes[i, -1]
+        if score < thresh:
+            continue
+
+        # show box (off by default)
+        ax.add_patch(
+            plt.Rectangle((bbox[0], bbox[1]),
+                          bbox[2] - bbox[0],
+                          bbox[3] - bbox[1],
+                          fill=False, edgecolor='g',
+                          linewidth=0.5, alpha=box_alpha))
+
+        if show_class:
+            ax.text(
+                bbox[0], bbox[1] - 2,
+                get_class_string(classes[i], score, dataset),
+                fontsize=3,
+                family='serif',
+                bbox=dict(
+                    facecolor='g', alpha=0.4, pad=0, edgecolor='none'),
+                color='white')
+
+        # show mask
+
+
+        # show keypoints
+
+
+        # for kp in classes[i]:
+
+        # print (type(classes[i]))
+        class_list.append((get_class_string(classes[i], score, dataset)))
+        file.write(get_class_string(classes[i], score, dataset)+'\n')
+
+
+
+    file.close()
+    return class_list
