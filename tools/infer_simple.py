@@ -164,7 +164,7 @@ def main(args):
             lists =[]
             lists.insert(0, '2')
         lists.insert(0, os.path.splitext(os.path.basename(im_name))[0])
-        with open("/tmp/detectron-visualizations/output.csv", 'a') as resultFile:
+        with open(os.path.join(args.output_dir, 'output.csv'), 'a') as resultFile:
             wr = csv.writer(resultFile, dialect='excel')
             wr.writerow(lists)
 
